@@ -1,0 +1,44 @@
+name: get-live
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  Update:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: GetTime
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d %H:%M:%S CST')"
+
+    - name: Update
+      run: |
+        # live源
+        rm -f live.m3u && wget https://raw.githubusercontent.com/zwc456baby/iptv_alive/master/live.m3u -O live.m3u
+        sed -i '/小地方/,+1d' live.m3u
+        sed -i '/地方台/,+1d' live.m3u
+        sed -i '/session-1c4079b0/,+1d' live.m3u
+        sed -i '/tvg-name=#/,+1d' live.m3u
+        sed -i '/847703940/,+1d' live.m3u
+        sed -i '/测试/,+1d' live.m3u
+        sed -i '/^\s*$/d' live.m3u
+
+    - name: Clean
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git checkout --orphan latest_branch
+        git add -A
+        git commit -am "${{ steps.date.outputs.date }}"
+        git branch -D main
+        git branch -m main
+
+    - name: Push
+      run: git push -f origin main
