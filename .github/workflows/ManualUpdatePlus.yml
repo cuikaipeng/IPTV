@@ -1,0 +1,55 @@
+name: ManualUpdatePlus
+
+on:
+  workflow_dispatch:
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  Update:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: GetTime
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d %H:%M:%S CST')"
+
+    - name: Update
+      run: |
+        # 央视源
+        rm -f plus/CCTV.m3u && wget https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6Plus.m3u -O plus/CCTV.m3u
+        sed -i -n '/央视频道/,+1p' plus/CCTV.m3u
+        sed -i '1i #EXTM3U' plus/CCTV.m3u
+        sed -i '/^\s*$/d' plus/CCTV.m3u
+
+        # 卫视源
+        rm -f plus/CNTV.m3u && wget https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6Plus.m3u -O plus/CNTV.m3u
+        sed -i '/央视/,+1d' plus/CNTV.m3u
+        sed -i '/^\s*$/d' plus/CNTV.m3u
+
+        # 整合源
+        rm -f plus/IPTV.m3u && touch plus/IPTV.m3u
+        cat plus/CCTV.m3u >> plus/IPTV.m3u
+        cat plus/CNTV.m3u >> plus/IPTV.m3u
+        sed -i '/#EXTM3U/d' plus/IPTV.m3u
+        sed -i '1i #EXTM3U' plus/IPTV.m3u
+        sed -i '/^\s*$/d' plus/IPTV.m3u
+
+        # 节目源
+        echo "Auto Update IPTV plus in ${{ steps.date.outputs.date }}" > README.md
+
+    - name: Clean
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git checkout --orphan latest_branch
+        git add -A
+        git commit -am "${{ steps.date.outputs.date }}"
+        git branch -D main
+        git branch -m main
+
+    - name: Push
+      run: git push -f origin main
